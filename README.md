@@ -1,6 +1,4 @@
-# Gamma-Exposure
-
-# Gamma Exposure Analysis Application
+# Gamma Exposure Analysis (GEA) Application
 
 This application is designed to analyze the gamma exposure of options for a given ticker symbol. It is built using Python and Streamlit, and provides visualizations of gamma exposure based on options data provided in a CSV file.
 

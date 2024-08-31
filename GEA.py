@@ -22,9 +22,40 @@ def isThirdFriday(d):
 # Streamlit UI components
 st.title("Gamma Exposure Analysis")
 
-# User input for ticker symbol
-ticker = st.text_input("Enter the ticker symbol (e.g., SPX, TSLA):", "TSLA").upper()
-filename = f'{ticker.lower()}_quotedata.csv'
+# Instructions Section with URL
+st.markdown("""
+## How to Use the Tool
+
+This tool allows you to analyze options data and calculate gamma exposure. Follow the steps below to use the tool effectively:
+
+1. **Download a CSV file**: From the URL below, ensure the filters for **Volume**, **Expiration Type**, **Options Range** are set to **ALL**. You may select your desired 
+    expiration
+            
+2. **Upload a CSV File**: Click the 'Choose a CSV file' button to upload your options data. The file should contain columns for strike prices, gamma, open interest, and expiration dates.
+
+3. **Inspect Data**: After uploading the file, the tool will automatically parse and display key data points, such as spot price and expiration dates.
+
+4. **Gamma Exposure Analysis**:
+    - The tool calculates gamma exposure across different strike prices.
+    - It also analyzes the gamma exposure profile, highlighting key levels like the gamma flip point.
+
+5. **Visualizations**:
+    - The tool provides visualizations for absolute gamma exposure and gamma exposure by calls and puts.
+    - It also charts the gamma exposure profile, showing the potential impact on the market.
+
+6. **Interpret Results**:
+    - Use the charts to understand the gamma exposure at various strike prices.
+    - Identify critical points such as the spot price and gamma flip point.
+
+7. **Adjust Parameters**:
+    - Modify the file or input data and re-upload to see how different scenarios affect gamma exposure.
+
+### Useful Links
+
+- [CBOE SPY Quote Table](https://www.cboe.com/delayed_quotes/spy/quote_table)
+
+## Start by Uploading a CSV File Below:
+""")
 
 # File uploader for CSV data
 uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
@@ -33,10 +64,6 @@ if uploaded_file is not None:
     # Read and parse the CSV file as text to debug
     uploaded_file.seek(0)
     optionsFileData = uploaded_file.read().decode("utf-8").splitlines()
-
-    # Debug: Show the first few lines of the uploaded file
-    # st.write("File Content Preview:")
-    # st.write(optionsFileData[:10])  # Show the first 10 lines for debugging
 
     if len(optionsFileData) < 5:
         st.error("The uploaded file seems to be empty or incorrectly formatted.")
@@ -107,11 +134,11 @@ if uploaded_file is not None:
     plt.grid()
     plt.bar(strikes, dfAgg['TotalGamma'].to_numpy(), width=6, linewidth=0.1, edgecolor='k', label="Gamma Exposure")
     plt.xlim([fromStrike, toStrike])
-    chartTitle = f"Total Gamma: ${df['TotalGamma'].sum():.2f} Bn per 1% {ticker} Move"
+    chartTitle = f"Total Gamma: ${df['TotalGamma'].sum():.2f} Bn per 1% Move"
     plt.title(chartTitle, fontweight="bold", fontsize=20)
     plt.xlabel('Strike', fontweight="bold")
-    plt.ylabel(f'Spot Gamma Exposure ($ billions/1% {ticker} move)', fontweight="bold")
-    plt.axvline(x=spotPrice, color='r', lw=1, label=f"{ticker} Spot: {spotPrice:,.0f}")
+    plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
+    plt.axvline(x=spotPrice, color='r', lw=1, label=f"Spot: {spotPrice:,.0f}")
     plt.legend()
     st.pyplot(fig)
 
@@ -122,24 +149,27 @@ if uploaded_file is not None:
     plt.bar(strikes, dfAgg['CallGEX'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Call Gamma")
     plt.bar(strikes, dfAgg['PutGEX'].to_numpy() / 10**9, width=6, linewidth=0.1, edgecolor='k', label="Put Gamma")
     plt.xlim([fromStrike, toStrike])
-    chartTitle = f"Total Gamma: ${df['TotalGamma'].sum():.2f} Bn per 1% {ticker} Move"
+    chartTitle = f"Total Gamma: ${df['TotalGamma'].sum():.2f} Bn per 1% Move"
     plt.title(chartTitle, fontweight="bold", fontsize=20)
     plt.xlabel('Strike', fontweight="bold")
-    plt.ylabel(f'Spot Gamma Exposure ($ billions/1% {ticker} move)', fontweight="bold")
-    plt.axvline(x=spotPrice, color='r', lw=1, label=f"{ticker} Spot: {spotPrice:,.0f}")
+    plt.ylabel('Spot Gamma Exposure ($ billions/1% move)', fontweight="bold")
+    plt.axvline(x=spotPrice, color='r', lw=1, label=f"Spot: {spotPrice:,.0f}")
     plt.legend()
     st.pyplot(fig)
 
     # Calculate and Plot Gamma Exposure Profile
     levels = np.linspace(fromStrike, toStrike, 60)
 
-    df['daysTillExp'] = [1/262 if (np.busday_count(todayDate.date(), x.date())) == 0 \
-                               else np.busday_count(todayDate.date(), x.date())/262 for x in df.ExpirationDate]
+    df['daysTillExp'] = [1/262 if (np.busday_count(todayDate.date(), x.date())) == 0 
+                        else np.busday_count(todayDate.date(), x.date())/262 for x in df.ExpirationDate]
 
     nextExpiry = df['ExpirationDate'].min()
 
     df['IsThirdFriday'] = df['ExpirationDate'].apply(isThirdFriday)
-    thirdFridays = df.loc[df['IsThirdFriday'] == True]
+
+    # Directly filter using the boolean column
+    thirdFridays = df.loc[df['IsThirdFriday']]
+
     nextMonthlyExp = thirdFridays['ExpirationDate'].min()
 
     totalGamma = []
@@ -177,11 +207,11 @@ if uploaded_file is not None:
     plt.plot(levels, totalGamma, label="All Expiries")
     plt.plot(levels, totalGammaExNext, label="Ex-Next Expiry")
     plt.plot(levels, totalGammaExFri, label="Ex-Next Monthly Expiry")
-    chartTitle = f"Gamma Exposure Profile, {ticker}, " + todayDate.strftime('%d %b %Y')
+    chartTitle = "Gamma Exposure Profile, " + todayDate.strftime('%d %b %Y')
     plt.title(chartTitle, fontweight="bold", fontsize=20)
     plt.xlabel('Index Price', fontweight="bold")
-    plt.ylabel(f'Gamma Exposure ($ billions/1% {ticker} move)', fontweight="bold")
-    plt.axvline(x=spotPrice, color='r', lw=1, label=f"{ticker} Spot: {spotPrice:,.0f}")
+    plt.ylabel('Gamma Exposure ($ billions/1% move)', fontweight="bold")
+    plt.axvline(x=spotPrice, color='r', lw=1, label=f"Spot: {spotPrice:,.0f}")
 
     if zeroCrossIdx.size > 0:
         negGamma = totalGamma[zeroCrossIdx]
